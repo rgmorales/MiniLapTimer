@@ -42,8 +42,24 @@ unsigned long lapComplete = 0;
 
 
 
+/*
+0 - ~17volt voltmeter
+works with 3.3volt and 5volt Arduinos
+uses the internal 1.1volt reference
+150k resistor from A1 to +batt
+10k resistor from A1 to ground
+optional 100n capacitor from A1 to ground for stable readings
+*/
+float Aref = 1.063; // change this to the actual Aref voltage of ---YOUR--- Arduino, or adjust to get accurate voltage reading (1.000- 1.200)
+unsigned int total; // A/D output
+float voltage; // converted to volt
+
+
 void setup()
 {
+
+	analogReference(INTERNAL1V1); // use the internal ~1.1volt reference, change (INTERNAL) to (INTERNAL1V1) for a Mega
+
 
 	while (!Serial);
 	while (!Serial1);
@@ -147,10 +163,13 @@ void updateScreen(uint8_t numSats,double speed,unsigned long currentSession, uns
 		waitForFix();
 		return;
 	}
+	
 	oled.home();
 	oled.set1X();
-	oled.println("Sats:" + String((int)numSats) + " - " + String(speed,0) + " mph     ");	
-	oled.println((((millis() / 100) % 10) % 2==0)?"       ***          ":"                  ");
+	oled.println("Sats:" + String((int)numSats) + " - " + String(speed,0) + " mph       ");	
+	oled.print((((millis() / 100) % 10) % 2==0)?"       ***    ": "              ");
+	oled.print(getVoltage(),2);
+	oled.println("v");
 	oled.println("Best:" + String(bestLap));	
 	oled.set2X();
 	oled.println(formatSessionTime(bestSession) +"         ");
@@ -207,10 +226,23 @@ void waitForFix() {
 				oled.set1X();
 				oled.set1X();
 				oled.println((((millis() / 100) % 10) % 2 == 0) ? "  ***          " : "                  ");
+				oled.println(F(""));
+				oled.print(getVoltage(),2);
+				oled.println("v");
 			}
 	} while ((int)gps.satellites.value() < 3);
 	delay(3000);
 	oled.clear();
+}
+
+float getVoltage() {
+	total = 0;
+	analogRead(1); // one unused reading to clear old sh#t
+	for (int x = 0; x < 16; x++) { // 16 analogue readings and 1/16 voltage divider = no additional maths
+		total = total + analogRead(1); // add each value
+	}
+	voltage = total * Aref / 1024; // convert readings to volt
+	return voltage;
 }
 
 
